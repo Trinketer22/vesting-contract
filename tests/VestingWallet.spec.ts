@@ -56,9 +56,10 @@ describe('VestingWallet', () => {
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
+        blockchain.now = VESTING_START_TIME;
 
-        ownerKeyPair = keyPairFromSeed(Buffer.from(base64Decode('vt58J2v6FaBuXFGcyGtqT5elpVxcZ+I1zgu/GUfA5uY=')));
-        notOwnerKeyPair = keyPairFromSeed(Buffer.from(base64Decode('vt59J2v6FaBuXFGcyGtqT5elpVxcZ+I1zgu/GUfA5uY=')));
+        ownerKeyPair = keyPairFromSeed(Buffer.from('vt58J2v6FaBuXFGcyGtqT5elpVxcZ+I1zgu/GUfA5uY=', 'base64'));
+        notOwnerKeyPair = keyPairFromSeed(Buffer.from('vt59J2v6FaBuXFGcyGtqT5elpVxcZ+I1zgu/GUfA5uY=', 'base64'));
 
         vestingSender = await blockchain.treasury('vestingSender');
         owner = await blockchain.treasury('owner');
