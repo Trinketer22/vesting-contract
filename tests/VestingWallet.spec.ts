@@ -1,11 +1,10 @@
-import {Blockchain, SandboxContract, TreasuryContract} from '@ton-community/sandbox';
-import {Address, beginCell, Cell, internal, MessageRelaxed, SenderArguments, SendMode, toNano} from 'ton-core';
+import {Blockchain, SandboxContract, TreasuryContract} from '@ton/sandbox';
+import {Address, beginCell, Cell, internal, MessageRelaxed, SenderArguments, SendMode, toNano} from '@ton/core';
 import {ErrorCodes, Opcodes, VestingWallet} from '../wrappers/VestingWallet';
-import '@ton-community/test-utils';
-import {compile} from '@ton-community/blueprint';
-import {createWalletTransferV3} from "ton/dist/wallets/signing/createWalletTransfer";
-import {KeyPair, keyPairFromSeed} from "ton-crypto";
-import {base64Decode} from "@ton-community/sandbox/dist/utils/base64";
+import '@ton/test-utils';
+import {compile} from '@ton/blueprint';
+import {createWalletTransferV3} from "@ton/ton/dist/wallets/signing/createWalletTransfer";
+import {KeyPair, keyPairFromSeed} from "@ton/crypto";
 
 function senderArgsToMessageRelaxed(args: SenderArguments): MessageRelaxed {
     return internal({
