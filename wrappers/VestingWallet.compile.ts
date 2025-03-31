@@ -1,6 +1,6 @@
-import { CompilerConfig } from '@ton-community/blueprint';
+import { CompilerConfig } from '@ton/blueprint';
 
 export const compile: CompilerConfig = {
-    lang: 'func',
-    targets: ['contracts/vesting_wallet.fc'],
+    lang: 'tolk',
+    entrypoint: 'contracts/vesting_wallet.tolk',
 };
