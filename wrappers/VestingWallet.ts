@@ -8,9 +8,8 @@ import {
     MessageRelaxed,
     Sender,
     SendMode
-} from 'ton-core';
-import {Maybe} from "ton/dist/utils/maybe";
-import {createWalletTransferV3} from "ton/dist/wallets/signing/createWalletTransfer";
+} from '@ton/core';
+import {createWalletTransferV3} from "@ton/ton/dist/wallets/signing/createWalletTransfer";
 
 export type VestingWalletConfig = {
     subWalletId: number,
@@ -155,7 +154,7 @@ export class VestingWallet implements Contract {
     /**
      * Create transfer
      */
-    createTransfer(args: { seqno: number, sendMode: SendMode, secretKey: Buffer, messages: MessageRelaxed[], timeout: Maybe<number>, subWalletId: number }) {
+    createTransfer(args: { seqno: number, sendMode: SendMode, secretKey: Buffer, messages: MessageRelaxed[], timeout?: number | null, subWalletId: number }) {
         return createWalletTransferV3({
             seqno: args.seqno,
             sendMode: args.sendMode,
