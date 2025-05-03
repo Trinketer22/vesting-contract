@@ -5,6 +5,8 @@ import '@ton/test-utils';
 import {compile} from '@ton/blueprint';
 import {createWalletTransferV3} from "@ton/ton/dist/wallets/signing/createWalletTransfer";
 import {KeyPair, keyPairFromSeed} from "@ton/crypto";
+import { reportCodeSize, reportGas } from './utils';
+import { findTransactionRequired } from '@ton/test-utils';
 
 function senderArgsToMessageRelaxed(args: SenderArguments): MessageRelaxed {
     return internal({
@@ -44,6 +46,7 @@ describe('VestingWallet', () => {
 
     beforeAll(async () => {
         code = await compile('VestingWallet');
+        reportCodeSize("Vesing wallet", code);
     });
 
     let ownerKeyPair: KeyPair;
@@ -182,10 +185,18 @@ describe('VestingWallet', () => {
         expect(await vestingWallet.getIsWhitelisted(Address.parse('0:0073f6ed7a84ac7d90739db7741f9d487478854b69960769f74859081e592d1c'))).toBeFalsy()
 
         await checkLockupData();
+
+        return result;
     }
 
     it('add 1 whitelist', async () => {
-        await addWhitelist(1, vestingSender);
+        const res = await addWhitelist(1, vestingSender);
+        const addWhitelistTx = findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            op: Opcodes.add_whitelist,
+            aborted: false
+        });
+        reportGas("Add whitelist", addWhitelistTx);
     });
     it('add 2 whitelist', async () => {
         await addWhitelist(2, vestingSender);
@@ -636,6 +647,8 @@ describe('VestingWallet', () => {
         expect(whitelist.length).toBe(0);
 
         await checkLockupData();
+
+        return result;
     }
 
     async function transferFail(time: number, value: bigint) {
@@ -694,10 +707,16 @@ describe('VestingWallet', () => {
     });
 
     it('owner can internal 2/12 transfer', async () => {
-        await transferSuccess(
+        const res = await transferSuccess(
             VESTING_START_TIME + CLIFF_DURATION,
             toNano(123000n * 2n / 12n)
         )
+        reportGas("Partial unlock internal", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }));
+
     });
 
     it('owner cant internal 4/12 transfer', async () => {
@@ -810,11 +829,12 @@ describe('VestingWallet', () => {
             msg: t.beginParse().loadRef()
         });
 
-        expect(result.transactions).toHaveTransaction({
+        const transferTx = findTransactionRequired(result.transactions, {
             from: owner.address,
             to: vestingWallet.address,
             success: true
         });
+        reportGas("Transfer after unlock", transferTx);
 
         expect(result.transactions).toHaveTransaction({
             from: vestingWallet.address,
@@ -1042,6 +1062,8 @@ describe('VestingWallet', () => {
         }
 
         await checkLockupData();
+
+        return result;
     }
 
     async function transferAllowElector(time: number, sender: SandboxContract<TreasuryContract>, to: Address, isWhitelist: boolean, sendMode: number, bounceable: boolean, hasStateInit: boolean, comment: String | number | undefined) {
@@ -1130,6 +1152,8 @@ describe('VestingWallet', () => {
         }
 
         await checkLockupData();
+
+        return result;
     }
 
     // after vesting
@@ -1190,7 +1214,12 @@ describe('VestingWallet', () => {
     });
 
     it('if locked && to vestingSender - non-bounceable, state_init, "y" allowed', async () => {
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, vestingSender.address, false, 3, false, true, 'y');
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, vestingSender.address, false, 3, false, true, 'y');
+        reportGas("Internal transfer to vesting sender", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }));
     });
 
     // to whitelist
@@ -1240,19 +1269,40 @@ describe('VestingWallet', () => {
     });
 
     it('if locked && whitelist & elector - new_stake allowed', async () => {
-        await transferAllowElector(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, ELECTOR_ADDRESS, true, 3, true, false, Opcodes.elector_new_stake);
+        const res = await transferAllowElector(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, ELECTOR_ADDRESS, true, 3, true, false, Opcodes.elector_new_stake);
+        reportGas("Internal elector transfer", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }));
     });
 
     it('if locked && whitelist & elector - recover_stake allowed', async () => {
-        await transferAllowElector(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, ELECTOR_ADDRESS, true, 3, true, false, Opcodes.elector_recover_stake);
+        const res = await transferAllowElector(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, ELECTOR_ADDRESS, true, 3, true, false, Opcodes.elector_recover_stake);
+        reportGas("Internal elector recover stake", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }));
     });
 
     it('if locked && whitelist & elector - vote_for_complaint allowed', async () => {
-        await transferAllowElector(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, ELECTOR_ADDRESS, true, 3, true, false, Opcodes.vote_for_complaint);
+        const res = await transferAllowElector(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, ELECTOR_ADDRESS, true, 3, true, false, Opcodes.vote_for_complaint);
+        reportGas("Internal elector vote for complaint", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }));
+
     });
 
     it('if locked && whitelist & elector - vote_for_proposal allowed', async () => {
-        await transferAllowElector(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, ELECTOR_ADDRESS, true, 3, true, false, Opcodes.vote_for_proposal);
+        const res = await transferAllowElector(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, ELECTOR_ADDRESS, true, 3, true, false, Opcodes.vote_for_proposal);
+        reportGas("Internal elector vote for proposal", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }));
     });
 
     // config
@@ -1289,34 +1339,74 @@ describe('VestingWallet', () => {
 
     it('if locked && whitelist - 0x1000 allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.single_nominator_pool_withdraw);
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.single_nominator_pool_withdraw);
+        reportGas("Whitelist single nominator withdraw", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
     });
     it('if locked && whitelist - 0x1001 allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.single_nominator_pool_change_validator);
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.single_nominator_pool_change_validator);
+        reportGas("Whitelist nominator pool change validator", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
+
     });
     it('if locked && whitelist - 0x47d54391 allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.ton_stakers_deposit);
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.ton_stakers_deposit);
+        reportGas("Whitelist tonstakers deposit", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
+
     });
     it('if locked && whitelist - 0x595f07bc allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.jetton_burn);
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.jetton_burn);
+        reportGas("Whitelist withdraw liquid staking", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
+
     });
 
     it('if locked && whitelist - tonstakers vote allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.ton_stakers_vote);
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.ton_stakers_vote);
+        reportGas("Whitelist tonstakers vote", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
+
     });
 
     it('if locked && whitelist - vote for complaint allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.vote_for_complaint);
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.vote_for_complaint);
+        reportGas("Whitelist vote for complaint", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
     });
 
     it('if locked && whitelist - vote for proposal allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.vote_for_proposal);
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, Opcodes.vote_for_proposal);
+        reportGas("Whitelist vote for proposal", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
+
     });
 
     it('if locked && whitelist - single-nominator send_raw_msg rejected', async () => {
@@ -1346,15 +1436,33 @@ describe('VestingWallet', () => {
 
     it('if locked && whitelist - empty allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, undefined);
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, undefined);
+        reportGas("Whitelist empty body transfer", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
+
     });
     it('if locked && whitelist - "" allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, '');
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, '');
+        reportGas("Whitelist empty comment transfer", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
+
     });
     it('if locked && whitelist - "d" allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
-        await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, 'd');
+        const res = await transferAllow(VESTING_START_TIME + UNLOCK_PERIOD * 7, owner, notVestingSender.address, true, 3, true, false, 'd');
+        reportGas("Whitelist comment transfer", findTransactionRequired(res.transactions, {
+            on: vestingWallet.address,
+            from: owner.address,
+            aborted: false
+        }))
+
     });
     it('if locked && whitelist - "w" allowed', async () => {
         const notVestingSender = await blockchain.treasury('notVestingSender');
@@ -1399,6 +1507,12 @@ describe('VestingWallet', () => {
         })
         expect(transferResult.transactions.length).toBe(2);
 
+        reportGas("External transfer to vesting sender", findTransactionRequired(transferResult.transactions, {
+            on: vestingWallet.address,
+            outMessagesCount: 1,
+            aborted: false
+        }));
+
         await checkLockupData(1);
 
         const whitelist = await vestingWallet.getWhitelist();
@@ -1434,6 +1548,12 @@ describe('VestingWallet', () => {
             value: toNano('122999.9'),
         })
         expect(transferResult.transactions.length).toBe(2);
+        reportGas("External transfer after unlock", findTransactionRequired(transferResult.transactions, {
+            on: vestingWallet.address,
+            outMessagesCount: 1,
+            aborted: false
+        }));
+
 
         await checkLockupData(1);
 
